@@ -115,9 +115,19 @@ function Invoke-YtListLock {
 
     $parent = Split-Path -Parent $targetFolder
     if (-not $parent) { $parent = (Get-Location).Path }
+    if (Test-Path -LiteralPath $parent) {
+        if (-not (Test-Path -LiteralPath $parent -PathType Container)) {
+            throw "La ruta de salida existe, pero no es un directorio: '$parent'."
+        }
+    }
+    else {
+        New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null
+    }
+
     $archivePath = Join-Path $parent $archiveLeaf
     $tempArchivePath = Join-Path $parent ($archiveLeaf -replace '\.rar$', '.tmp.rar')
     $previousArchivePath = Join-Path $parent ($archiveLeaf -replace '\.rar$', '.previous.rar')
+    Write-Verbose "Archivo RAR de destino: $archivePath"
 
     if (Test-Path -LiteralPath $tempArchivePath) {
         throw "Existe un archivo temporal previo: '$tempArchivePath'. Reviselo manualmente."

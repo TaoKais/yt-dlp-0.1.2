@@ -19,7 +19,7 @@ El comando `yt-list-lock` recibe una o varias URL de canales o listas, solicita
 a `yt-dlp` un índice plano y guarda líneas con este formato:
 
 ```text
-Título del vídeo | https://www.youtube.com/watch?v=identificador
+Título del vídeo | enlace generado a partir del identificador
 ```
 
 Después coloca el texto dentro de una carpeta temporal, crea un archivo RAR5
@@ -74,13 +74,119 @@ C:\Program Files\WinRAR\WinRAR.exe
 
 WinRAR es software de terceros y no se distribuye con este repositorio.
 
+## How to: instalación y primera ejecución
+
+Esta secuencia parte de una terminal PowerShell y obtiene directamente la rama
+de desarrollo que contiene `yt-list-lock`.
+
+### 1. Clonar la rama correcta
+
+```powershell
+git clone -b feature/encrypted-git-workspace https://github.com/TaoKais/yt-dlp-0.1.2.git
+cd yt-dlp-0.1.2
+```
+
+La opción `-b` selecciona la rama del prototipo durante el clon. `cd` cambia el
+directorio actual a la copia recién creada; los comandos siguientes deben
+ejecutarse desde ahí.
+
+### 2. Comprobar las dependencias
+
+```powershell
+yt-dlp --version
+Test-Path "C:\Program Files\WinRAR\WinRAR.exe"
+```
+
+El primer comando debe mostrar una versión de `yt-dlp`. El segundo debe devolver
+`True`. Para abrir WinRAR manualmente y confirmar que funciona puede utilizarse:
+
+```powershell
+& "C:\Program Files\WinRAR\WinRAR.exe"
+```
+
+Abrir WinRAR de esta forma es una comprobación opcional; no crea todavía el
+archivo cifrado. Cierre la ventana antes de continuar.
+
+### 3. Preparar el directorio de resultados
+
+```powershell
+mkdir resultados
+```
+
+Este paso es opcional: el comando crea el directorio padre automáticamente si
+no existe. Se mantiene en la guía para que pueda ver y controlar de antemano la
+ubicación elegida. El programa no sobrescribe silenciosamente archivos
+anteriores.
+
+Las rutas relativas se interpretan desde el directorio actual de PowerShell,
+que puede consultarse con `Get-Location`. Si no ejecutó antes
+`cd yt-dlp-0.1.2`, `resultados\watch_later` podría resolverse como
+`C:\Users\<usuario>\resultados\watch_later` en lugar de quedar dentro del clon.
+Para evitar dudas puede usar una ruta absoluta en `-Folder`.
+
+### 4. Ejecutar `yt-list-lock`
+
+Sustituya los marcadores por sus fuentes únicamente en su terminal local. No
+añada esas direcciones al README, a commits, a incidencias ni a logs públicos.
+
+```powershell
+.\tools\yt-list-lock.ps1 `
+  -Source "<URL_1>;<URL_2>" `
+  -Output "watch_later.txt" `
+  -Folder "resultados\watch_later" `
+  -ArchiveName "watch_later_private"
+```
+
+Los acentos graves al final de línea son el carácter de continuación de
+PowerShell. También puede escribirse el comando completo en una única línea.
+
+Los parámetros significan:
+
+- `-Source`: una o varias fuentes privadas para la ejecución local, separadas
+  por `;` dentro de las comillas;
+- `-Output`: nombre del índice de texto que quedará dentro del RAR;
+- `-Folder`: carpeta lógica incluida en el archivo y ubicación base del
+  resultado;
+- `-ArchiveName`: nombre del RAR sin necesidad de escribir `.rar`.
+
+### 5. Introducir la contraseña
+
+WinRAR mostrará una solicitud para crear el archivo cifrado. Introduzca allí la
+contraseña; no la escriba en el comando. Durante la comprobación puede aparecer
+una segunda solicitud: debe introducir exactamente la misma contraseña.
+
+Si ambas operaciones terminan correctamente, el resultado será:
+
+```text
+resultados\watch_later_private.rar
+```
+
+El RAR contendrá:
+
+```text
+watch_later\watch_later.txt
+```
+
+### 6. Interpretar un fallo
+
+Si las dos contraseñas no coinciden, se cancela un diálogo o falla una
+dependencia, no se publica el nombre definitivo. El candidato permanece como:
+
+```text
+resultados\watch_later_private.tmp.rar
+```
+
+PowerShell mostrará además la ruta del workspace conservado bajo `%TEMP%`. Esta
+retención es intencionada: permite recuperar el índice y diagnosticar el fallo
+antes de eliminar nada.
+
 ## Uso rápido
 
 Desde la raíz del proyecto:
 
 ```powershell
 .\tools\yt-list-lock.ps1 `
-  -Source "https://www.youtube.com/@canal" `
+  -Source "<URL_1>" `
   -Output "canal.txt" `
   -Folder "resultados\canal" `
   -ArchiveName "canal"
@@ -89,7 +195,7 @@ Desde la raíz del proyecto:
 También se incluye un lanzador para CMD:
 
 ```bat
-scripts\yt-list-lock.cmd -Source "https://www.youtube.com/@canal" -Output "canal.txt" -Folder "resultados\canal" -ArchiveName "canal"
+scripts\yt-list-lock.cmd -Source "<URL_1>" -Output "canal.txt" -Folder "resultados\canal" -ArchiveName "canal"
 ```
 
 El directorio padre indicado en `-Folder` debe existir. En el ejemplo anterior
@@ -112,7 +218,7 @@ dentro de una única cadena entre comillas:
 
 ```powershell
 .\tools\yt-list-lock.ps1 `
-  -Source "https://www.youtube.com/@canal;https://www.youtube.com/@canal2" `
+  -Source "<URL_1>;<URL_2>" `
   -Output "canales.txt" `
   -Folder "resultados\canalx" `
   -ArchiveName "mis-canales"
@@ -122,8 +228,8 @@ También se puede pasar un array desde PowerShell:
 
 ```powershell
 $channels = @(
-  'https://www.youtube.com/@canal'
-  'https://www.youtube.com/@canal2'
+  '<URL_1>'
+  '<URL_2>'
 )
 
 .\tools\yt-list-lock.ps1 `
@@ -154,7 +260,7 @@ necesiten rutas explícitas:
 Import-Module .\tools\YtListLock.psm1 -Force
 
 Invoke-YtListLock `
-  -Source 'https://www.youtube.com/@canal' `
+  -Source '<URL_1>' `
   -Output 'canal.txt' `
   -Folder 'C:\Listados\canal' `
   -ArchiveName 'canal' `
@@ -199,7 +305,7 @@ explícita:
 
 ```powershell
 .\tools\yt-list-lock.ps1 `
-  -Source "https://www.youtube.com/@canal" `
+  -Source "<URL_1>" `
   -Output "canal.txt" `
   -Folder "resultados\canal" `
   -ArchiveName "canal" `
