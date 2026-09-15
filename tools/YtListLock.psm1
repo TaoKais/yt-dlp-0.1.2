@@ -94,7 +94,10 @@ function Invoke-YtListLock {
         [string] $WinRARPath
     )
 
-    $sources = ConvertTo-YtListSources -Source $Source
+    # PowerShell unwraps a one-item pipeline result into a scalar. Force an
+    # array so Count and argument construction behave identically for one or
+    # many sources under StrictMode.
+    $sources = @(ConvertTo-YtListSources -Source $Source)
     $status = Get-YtListLockStatus
     if (-not $YtDlpPath) { $YtDlpPath = $status.YtDlp }
     if (-not $WinRARPath) { $WinRARPath = $status.WinRAR }
