@@ -1,5 +1,6 @@
 # Generated archives and local integration-test artifacts
 /test-output/
+/yt-dlp-0.1.2/
 *.tmp.rar
 *.previous.rar
 

@@ -64,7 +64,7 @@ pero no recibe la contraseña de WinRAR.
 La operación equivalente es:
 
 ```text
-yt-dlp --flat-playlist --print "%(title)s | https://www.youtube.com/watch?v=%(id)s" URL...
+yt-dlp --flat-playlist --print "<FORMATO_DE_TITULO_Y_ENLACE>" <URL_PRIVADA>...
 ```
 
 PowerShell captura la salida directamente. No utiliza `>` proporcionado por el
@@ -146,16 +146,20 @@ línea ficticia para probar WinRAR sin acceder a YouTube ni descargar contenido.
 introduzca la contraseña directamente en WinRAR. Nunca se debe escribir esa
 contraseña en la terminal o incorporarla al script.
 
-La prueba realizada con WinRAR 7.23 confirmó dos comportamientos:
+Las pruebas realizadas con WinRAR 7.23 confirmaron estos comportamientos:
 
 1. WinRAR crea el candidato RAR5 cuando recibe `-ma5 -hp`.
 2. Si se introducen deliberadamente contraseñas diferentes al crear y verificar,
    WinRAR devuelve el código 11, el resultado definitivo no se publica y los
    datos temporales permanecen disponibles para recuperación.
+3. Si se introduce la misma contraseña en ambos diálogos, la prueba devuelve
+   código cero, el candidato se publica con el nombre definitivo y el workspace
+   temporal se limpia.
+4. Una única fuente y varias fuentes se contabilizan correctamente en el objeto
+   final de resultado.
 
-Esto valida el escenario de contraseña incorrecta y la política de no eliminar
-datos después de un fallo. Aún debe ejecutarse el caso de éxito utilizando la
-misma contraseña en ambos diálogos.
+Esto valida tanto el escenario de contraseña incorrecta y conservación ante
+fallos como el recorrido completo de creación, verificación y publicación.
 
 ## 11. Fallos de red y certificados
 

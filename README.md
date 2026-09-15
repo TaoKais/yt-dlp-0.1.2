@@ -79,9 +79,14 @@ WinRAR es software de terceros y no se distribuye con este repositorio.
 Esta secuencia parte de una terminal PowerShell y obtiene directamente la rama
 de desarrollo que contiene `yt-list-lock`.
 
-### 1. Clonar la rama correcta
+### 1. Elegir entre instalación nueva y actualización
+
+Para una instalación nueva, sitúese primero en el directorio que contendrá el
+proyecto. No ejecute `git clone` desde dentro de otra copia del mismo
+repositorio:
 
 ```powershell
+cd C:\Users\<usuario>
 git clone -b feature/encrypted-git-workspace https://github.com/TaoKais/yt-dlp-0.1.2.git
 cd yt-dlp-0.1.2
 ```
@@ -89,6 +94,25 @@ cd yt-dlp-0.1.2
 La opción `-b` selecciona la rama del prototipo durante el clon. `cd` cambia el
 directorio actual a la copia recién creada; los comandos siguientes deben
 ejecutarse desde ahí.
+
+Si el repositorio ya está clonado, no vuelva a clonarlo. Actualice la copia
+existente:
+
+```powershell
+cd C:\Users\<usuario>\yt-dlp-0.1.2
+git switch feature/encrypted-git-workspace
+git pull --ff-only
+```
+
+Compruebe la ubicación antes de continuar:
+
+```powershell
+Get-Location
+git status --short --branch
+```
+
+La rama mostrada debe ser `feature/encrypted-git-workspace`. Si se clona el
+repositorio desde dentro de sí mismo, se crea una copia anidada innecesaria.
 
 ### 2. Comprobar las dependencias
 
@@ -167,6 +191,18 @@ El RAR contendrá:
 watch_later\watch_later.txt
 ```
 
+El comando termina mostrando un objeto semejante a este, sin revelar la
+contraseña:
+
+```text
+Archive : C:\ruta\resultados\watch_later_private.rar
+Sources : 2
+Output  : watch_later.txt
+```
+
+`Sources` indica cuántas fuentes únicas se procesaron. Una sola fuente también
+es válida y debe mostrar `Sources : 1`.
+
 ### 6. Interpretar un fallo
 
 Si las dos contraseñas no coinciden, se cancela un diálogo o falla una
@@ -179,6 +215,31 @@ resultados\watch_later_private.tmp.rar
 PowerShell mostrará además la ruta del workspace conservado bajo `%TEMP%`. Esta
 retención es intencionada: permite recuperar el índice y diagnosticar el fallo
 antes de eliminar nada.
+
+Errores ya identificados durante las pruebas:
+
+- **No se puede crear `...tmp.rar`:** la ruta relativa se resolvió desde otro
+  directorio. La versión actual crea el padre automáticamente, pero conviene
+  verificar `Get-Location` o utilizar una ruta absoluta.
+- **Código 11 de WinRAR:** las contraseñas de creación y verificación no
+  coinciden. El RAR temporal y el workspace se conservan.
+- **No se encuentra la propiedad `Count`:** correspondía a una versión anterior
+  al commit que corrigió las fuentes únicas. Ejecute `git pull --ff-only`.
+- **Error de certificados TLS:** repare la cadena de certificados o la
+  configuración de red. La herramienta no desactiva automáticamente la
+  validación HTTPS.
+
+### 7. Confirmar el resultado
+
+```powershell
+Get-Item ".\resultados\watch_later_private.rar" |
+  Select-Object FullName, Length, LastWriteTime
+```
+
+El nombre definitivo solo existe después de que WinRAR haya verificado el RAR.
+La ausencia del sufijo `.tmp.rar` confirma que la publicación transaccional se
+completó. Para abrirlo, utilice WinRAR e introduzca la contraseña directamente
+en su interfaz.
 
 ## Uso rápido
 
