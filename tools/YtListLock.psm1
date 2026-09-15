@@ -60,6 +60,28 @@ function Get-YtListLockStatus {
     }
 }
 
+function Invoke-WinRARProcess {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string] $WinRARPath,
+        [Parameter(Mandatory)] [ValidateSet('a', 't')] [string] $Command,
+        [Parameter(Mandatory)] [string] $ArchivePath,
+        [string] $InputPath
+    )
+
+    # These paths cannot contain a double quote on Windows. Quoting them here
+    # preserves spaces without ever adding a password to the process arguments.
+    $arguments = if ($Command -eq 'a') {
+        'a -ma5 -hp -ep1 -- "{0}" "{1}"' -f $ArchivePath, $InputPath
+    }
+    else {
+        't -hp -- "{0}"' -f $ArchivePath
+    }
+
+    $process = Start-Process -FilePath $WinRARPath -ArgumentList $arguments -Wait -PassThru
+    return $process.ExitCode
+}
+
 function Invoke-YtListLock {
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -128,13 +150,15 @@ function Invoke-YtListLock {
 
         if (-not $PSCmdlet.ShouldProcess($archivePath, 'Crear y verificar archivo RAR5 cifrado')) { return }
 
-        & $WinRARPath a -ma5 -hp -ep1 -- $tempArchivePath $stagedFolder
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $tempArchivePath -PathType Leaf)) {
+        $rarExitCode = Invoke-WinRARProcess -WinRARPath $WinRARPath -Command a `
+            -ArchivePath $tempArchivePath -InputPath $stagedFolder
+        if ($rarExitCode -ne 0 -or -not (Test-Path -LiteralPath $tempArchivePath -PathType Leaf)) {
             throw "WinRAR no pudo crear el archivo. Workspace conservado en '$sessionRoot'."
         }
 
-        & $WinRARPath t -hp -- $tempArchivePath
-        if ($LASTEXITCODE -ne 0) {
+        $rarExitCode = Invoke-WinRARProcess -WinRARPath $WinRARPath -Command t `
+            -ArchivePath $tempArchivePath
+        if ($rarExitCode -ne 0) {
             throw "La verificacion del RAR fallo. Workspace y archivo temporal conservados."
         }
 

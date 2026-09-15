@@ -10,6 +10,9 @@ sin reemplazar Git, `yt-dlp` ni WinRAR.
 > está en fase de diseño. No utilice esta versión como única copia de datos
 > importantes.
 
+La secuencia completa, sus invariantes de seguridad y las pruebas de recuperación
+se documentan en [docs/METODOLOGIA.md](docs/METODOLOGIA.md).
+
 ## Qué hace actualmente
 
 El comando `yt-list-lock` recibe una o varias URL de canales o listas, solicita

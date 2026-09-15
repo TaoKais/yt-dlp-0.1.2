@@ -1,0 +1,7 @@
+# Generated archives and local integration-test artifacts
+/test-output/
+*.tmp.rar
+*.previous.rar
+
+# PowerShell and test diagnostics
+*.stderr.txt
