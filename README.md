@@ -78,6 +78,36 @@ crítica. El diseño de seguridad, el tratamiento de interrupciones y las prueba
 de recuperación deberán revisarse antes de publicar una primera versión
 utilizable.
 
+## Índices de canales: `yt-list-lock`
+
+El prototipo incluye un comando independiente que usa `yt-dlp
+--flat-playlist` únicamente para generar un índice de títulos y enlaces. No
+descarga audio ni vídeo. Después cifra el archivo de texto mediante WinRAR en
+formato RAR5 y verifica el archivo antes de eliminar el espacio temporal.
+
+```powershell
+.\tools\yt-list-lock.ps1 `
+  -Source "https://www.youtube.com/@canal;https://www.youtube.com/@canal2" `
+  -Output "canal.txt" `
+  -Folder "folder\canalx" `
+  -ArchiveName "nombre"
+```
+
+También se puede repetir `-Source` desde código PowerShell pasando un array. La
+contraseña no se acepta como parámetro: WinRAR debe solicitarla
+interactivamente mediante `-hp` sin valor. Nunca utilice una sintaxis como
+`nombre/password`, porque expondría el secreto en el historial y posiblemente
+en la lista de procesos.
+
+Si el RAR de destino existe, el comando se detiene. Con `-ReplaceExisting`, la
+versión anterior se conserva como `nombre.previous.rar`, siempre que ese backup
+no exista ya. Cualquier fallo de `yt-dlp`, WinRAR o la verificación conserva el
+workspace temporal para recuperación.
+
+WinRAR no se distribuye con este repositorio. La interacción de contraseña debe
+validarse con la versión concreta instalada antes de confiar datos importantes
+al prototipo.
+
 ## Colaboración con un repositorio original
 
 Cuando el proyecto se base en otro repositorio, se mantendrá esta convención:
