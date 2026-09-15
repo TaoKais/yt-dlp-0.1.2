@@ -1,126 +1,336 @@
 # Git Secure Workspace para Windows
 
-Proyecto en fase inicial para crear una pequeña capa de seguridad alrededor de
-Git en Windows 10 y Windows 11. Su objetivo es mantener cifrada la copia
-persistente de un repositorio y utilizar un espacio temporal únicamente durante
-la sesión de trabajo.
+Utilidades PowerShell para trabajar con datos temporales y conservar el
+resultado persistente dentro de archivos RAR5 cifrados. El proyecto está
+orientado a Windows 10 y Windows 11 y utiliza programas instalados en el equipo,
+sin reemplazar Git, `yt-dlp` ni WinRAR.
 
-## Objetivo
+> **Estado del proyecto:** prototipo en desarrollo. `yt-list-lock` ya está
+> disponible; la capa completa para bloquear y desbloquear repositorios Git aún
+> está en fase de diseño. No utilice esta versión como única copia de datos
+> importantes.
 
-La utilidad permitirá clonar o abrir un repositorio Git dentro de un directorio
-temporal, trabajar con las herramientas habituales (`git`, un editor o Codex) y
-guardar después el repositorio completo —incluido `.git`— en un archivo RAR5
-protegido mediante AES-256 y cifrado de cabeceras.
+## Qué hace actualmente
 
-Git seguirá siendo responsable de las operaciones de red y del historial:
-
-- `clone`, `fetch`, `pull` y `rebase`;
-- `status`, `commit` y gestión de ramas;
-- `push` hacia los remotos autorizados.
-
-Esta capa se limitará a gestionar el ciclo:
+El comando `yt-list-lock` recibe una o varias URL de canales o listas, solicita
+a `yt-dlp` un índice plano y guarda líneas con este formato:
 
 ```text
-repositorio remoto
-        ↓ Git mediante HTTPS o SSH
-workspace temporal (%TEMP% o RAM Disk)
-        ↕
-archivo RAR5 cifrado almacenado localmente
+Título del vídeo | https://www.youtube.com/watch?v=identificador
 ```
 
-HTTPS y SSH protegen el transporte. El cifrado RAR5 propuesto tiene un objetivo
-distinto: proteger la copia del repositorio mientras permanece almacenada
-localmente y el workspace está cerrado.
+Después coloca el texto dentro de una carpeta temporal, crea un archivo RAR5
+cifrado con WinRAR, prueba la integridad del RAR y elimina el workspace solo si
+todo ha finalizado correctamente.
 
-## Alcance previsto
+```text
+URL de canal o lista
+        │
+        ▼
+yt-dlp --flat-playlist --print ...
+        │
+        ▼
+archivo de texto en %TEMP%\YtListLock-<id>
+        │
+        ▼
+WinRAR a -ma5 -hp ... nombre.tmp.rar
+        │
+        ▼
+WinRAR t -hp ... nombre.tmp.rar
+        │
+        ├── error: conservar workspace y RAR temporal
+        │
+        └── correcto: publicar nombre.rar y limpiar workspace
+```
 
-La primera implementación se desarrollará principalmente en PowerShell e
-incluirá, de forma incremental:
+`--flat-playlist` evita procesar o descargar los archivos multimedia. La salida
+contiene únicamente los títulos e identificadores que `yt-dlp` pueda consultar.
 
-- `git-lock`: clonar un repositorio y crear un archivo cifrado verificado;
-- `git-unlock`: extraer un repositorio en un workspace temporal;
-- detección de Git, WinRAR/Rar y PowerShell;
-- soporte posterior para `git-work`, estado no sensible, RAM Disk y recuperación
-  de sesiones interrumpidas;
-- sustitución transaccional del archivo cifrado, sin sobrescrituras silenciosas;
-- conservación del workspace si falla Git, WinRAR o la validación del archivo.
+## Requisitos
 
-La contraseña no deberá almacenarse en Git, archivos de configuración o logs,
-ni mostrarse en pantalla. Antes de implementar el manejo de credenciales se
-validará el comportamiento real de WinRAR con la solicitud interactiva `-hp`,
-evitando siempre que sea posible incluir secretos en la línea de comandos del
-proceso.
+- Windows 10 u 11.
+- Windows PowerShell 5.1 o una versión posterior compatible.
+- `yt-dlp.exe` instalado y accesible mediante `PATH`.
+- WinRAR o Rar para Windows con soporte RAR5.
+- Acceso legítimo a las URL consultadas.
 
-## Uso legítimo y límites del proyecto
+La detección busca primero los ejecutables mediante `PATH` y después estas
+ubicaciones habituales:
 
-Este proyecto **no es una herramienta para descargar, extraer, copiar ni
-sustraer música, vídeo u otros contenidos multimedia**. Tampoco añadirá métodos
-para eludir controles de acceso, medidas técnicas de protección, licencias,
-derechos de autor ni condiciones de servicio de plataformas de terceros.
+```text
+C:\Program Files\WinRAR\WinRAR.exe
+C:\Program Files\WinRAR\Rar.exe
+C:\Program Files (x86)\WinRAR\WinRAR.exe
+```
 
-La utilidad se diseña exclusivamente para proteger repositorios Git locales que
-el usuario tenga derecho a utilizar y administrar. Cada usuario es responsable
-de disponer de autorización sobre el código, los remotos y los datos incluidos
-en el repositorio, así como de cumplir la legislación y las licencias aplicables.
+En el entorno de desarrollo se ha detectado WinRAR 7.23 en:
 
-El nombre actual del repositorio no supone afiliación, patrocinio ni respaldo
-por parte del proyecto `yt-dlp`, sus mantenedores o cualquier empresa, marca o
-servicio comercial. Esta iniciativa no comercializa música ni contenido
-multimedia, no actúa en nombre de ninguna marca y no utiliza `yt-dlp` como motor
-de descarga. Para evitar confusión, se podrá adoptar un nombre definitivo
-centrado en su función, por ejemplo **Git Secure Workspace**.
+```text
+C:\Program Files\WinRAR\WinRAR.exe
+```
 
-## Estado
+WinRAR es software de terceros y no se distribuye con este repositorio.
 
-El proyecto se encuentra en fase de análisis y diseño. Todavía no contiene una
-implementación operativa ni debe considerarse apto para proteger información
-crítica. El diseño de seguridad, el tratamiento de interrupciones y las pruebas
-de recuperación deberán revisarse antes de publicar una primera versión
-utilizable.
+## Uso rápido
 
-## Índices de canales: `yt-list-lock`
+Desde la raíz del proyecto:
 
-El prototipo incluye un comando independiente que usa `yt-dlp
---flat-playlist` únicamente para generar un índice de títulos y enlaces. No
-descarga audio ni vídeo. Después cifra el archivo de texto mediante WinRAR en
-formato RAR5 y verifica el archivo antes de eliminar el espacio temporal.
+```powershell
+.\tools\yt-list-lock.ps1 `
+  -Source "https://www.youtube.com/@canal" `
+  -Output "canal.txt" `
+  -Folder "resultados\canal" `
+  -ArchiveName "canal"
+```
+
+También se incluye un lanzador para CMD:
+
+```bat
+scripts\yt-list-lock.cmd -Source "https://www.youtube.com/@canal" -Output "canal.txt" -Folder "resultados\canal" -ArchiveName "canal"
+```
+
+El directorio padre indicado en `-Folder` debe existir. En el ejemplo anterior
+el archivo final será:
+
+```text
+resultados\canal.rar
+```
+
+y el RAR contendrá:
+
+```text
+canal\canal.txt
+```
+
+## Varios canales o listas
+
+La forma más sencilla desde una terminal consiste en separar las URL con `;`
+dentro de una única cadena entre comillas:
 
 ```powershell
 .\tools\yt-list-lock.ps1 `
   -Source "https://www.youtube.com/@canal;https://www.youtube.com/@canal2" `
-  -Output "canal.txt" `
-  -Folder "folder\canalx" `
-  -ArchiveName "nombre"
+  -Output "canales.txt" `
+  -Folder "resultados\canalx" `
+  -ArchiveName "mis-canales"
 ```
 
-También se puede repetir `-Source` desde código PowerShell pasando un array. La
-contraseña no se acepta como parámetro: WinRAR debe solicitarla
-interactivamente mediante `-hp` sin valor. Nunca utilice una sintaxis como
-`nombre/password`, porque expondría el secreto en el historial y posiblemente
-en la lista de procesos.
+También se puede pasar un array desde PowerShell:
 
-Si el RAR de destino existe, el comando se detiene. Con `-ReplaceExisting`, la
-versión anterior se conserva como `nombre.previous.rar`, siempre que ese backup
-no exista ya. Cualquier fallo de `yt-dlp`, WinRAR o la verificación conserva el
-workspace temporal para recuperación.
+```powershell
+$channels = @(
+  'https://www.youtube.com/@canal'
+  'https://www.youtube.com/@canal2'
+)
 
-WinRAR no se distribuye con este repositorio. La interacción de contraseña debe
-validarse con la versión concreta instalada antes de confiar datos importantes
-al prototipo.
+.\tools\yt-list-lock.ps1 `
+  -Source $channels `
+  -Output "canales.txt" `
+  -Folder "resultados\canalx" `
+  -ArchiveName "mis-canales"
+```
 
-## Colaboración con un repositorio original
+El comando elimina URL duplicadas conservando el orden y rechaza valores que no
+sean direcciones HTTP o HTTPS absolutas. Las rutas con espacios deben escribirse
+entre comillas.
 
-Cuando el proyecto se base en otro repositorio, se mantendrá esta convención:
+## Parámetros
+
+| Parámetro | Obligatorio | Descripción |
+| --- | --- | --- |
+| `-Source` | Sí | URL, array de URL o cadena de URL separadas por `;`. |
+| `-Output` | Sí | Nombre del texto dentro del RAR. No admite una ruta. |
+| `-Folder` | Sí | Ruta cuya última carpeta se reproducirá dentro del RAR. Su directorio padre será la ubicación del archivo cifrado. |
+| `-ArchiveName` | Sí | Nombre del RAR, sin ruta. La extensión `.rar` es opcional. |
+| `-ReplaceExisting` | No | Permite reemplazar transaccionalmente un RAR, conservando antes el anterior como `.previous.rar`. |
+
+El módulo ofrece además `-YtDlpPath` y `-WinRARPath` para integraciones que
+necesiten rutas explícitas:
+
+```powershell
+Import-Module .\tools\YtListLock.psm1 -Force
+
+Invoke-YtListLock `
+  -Source 'https://www.youtube.com/@canal' `
+  -Output 'canal.txt' `
+  -Folder 'C:\Listados\canal' `
+  -ArchiveName 'canal' `
+  -YtDlpPath 'C:\Tools\yt-dlp.exe' `
+  -WinRARPath 'C:\Program Files\WinRAR\WinRAR.exe'
+```
+
+## Contraseña y cifrado
+
+La contraseña no forma parte de la sintaxis del comando. No se admite
+`nombre/password`, `-Password` ni una variable de configuración con el secreto.
+Estas alternativas podrían revelar la contraseña mediante el historial, los
+logs o los argumentos visibles del proceso.
+
+El módulo invoca WinRAR con `-hp` sin añadir una contraseña:
+
+```text
+WinRAR.exe a -ma5 -hp -ep1 -- nombre.tmp.rar carpeta
+WinRAR.exe t -hp -- nombre.tmp.rar
+```
+
+- `-ma5` solicita el formato RAR5.
+- `-hp` solicita cifrado de datos y cabeceras y hace que WinRAR pida la
+  contraseña interactivamente.
+- `-ep1` evita almacenar innecesariamente la ruta completa de origen.
+- `t` prueba el archivo cifrado antes de publicarlo.
+
+WinRAR puede pedir la contraseña nuevamente durante la verificación. No cierre
+esa segunda solicitud: sin una prueba correcta el RAR temporal no se convierte
+en el archivo definitivo.
+
+La interacción exacta de `-hp` depende de la versión y del ejecutable de
+WinRAR. Debe comprobarse manualmente en el equipo antes de confiar información
+importante al prototipo.
+
+## Protección frente a sobrescrituras
+
+El comando nunca sobrescribe silenciosamente un archivo existente.
+
+Si `canal.rar` ya existe, la ejecución se detiene. Para sustituirlo de forma
+explícita:
+
+```powershell
+.\tools\yt-list-lock.ps1 `
+  -Source "https://www.youtube.com/@canal" `
+  -Output "canal.txt" `
+  -Folder "resultados\canal" `
+  -ArchiveName "canal" `
+  -ReplaceExisting
+```
+
+El orden de la operación es:
+
+1. Crear `canal.tmp.rar`.
+2. Verificar `canal.tmp.rar` con WinRAR.
+3. Mover el RAR anterior a `canal.previous.rar`.
+4. Mover el archivo verificado a `canal.rar`.
+5. Eliminar el workspace temporal.
+
+Si `canal.previous.rar` ya existe, la operación se detiene para evitar que
+también esa copia sea sobrescrita.
+
+## Fallos y recuperación
+
+El workspace se crea bajo una ruta similar a:
+
+```text
+%TEMP%\YtListLock-0123456789abcdef...
+```
+
+Se conserva cuando falla cualquiera de estas operaciones:
+
+- consulta de `yt-dlp`;
+- generación del archivo de texto;
+- creación del RAR;
+- contraseña incorrecta o diálogo cancelado;
+- verificación del archivo cifrado;
+- movimiento transaccional del resultado.
+
+PowerShell muestra la ubicación conservada mediante una advertencia. Revise
+manualmente su contenido antes de repetir el comando. Si encuentra un
+`nombre.tmp.rar`, no lo borre hasta determinar si contiene la única copia útil.
+
+La salida de error de `yt-dlp` se conserva dentro de la sesión como
+`yt-dlp.stderr.txt`. No incluye contraseñas introducidas en WinRAR, pero podría
+contener URL o información de diagnóstico de la consulta.
+
+## Consultar disponibilidad
+
+```powershell
+Import-Module .\tools\YtListLock.psm1 -Force
+Get-YtListLockStatus | Format-List
+```
+
+Ejemplo:
+
+```text
+YtDlp  : C:\...\yt-dlp.exe
+WinRAR : C:\Program Files\WinRAR\WinRAR.exe
+```
+
+Un campo vacío significa que el programa correspondiente no ha sido localizado.
+
+## Pruebas
+
+Las pruebas actuales no acceden a YouTube ni introducen contraseñas. Validan el
+parsing de múltiples URL, la eliminación de duplicados, el rechazo de entradas
+inválidas y la detección local de `yt-dlp`:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\tests\YtListLock.Tests.ps1
+```
+
+La creación real de un RAR cifrado y el diálogo interactivo de WinRAR siguen
+requiriendo una prueba manual de integración.
+
+## Objetivo futuro: repositorios Git cifrados
+
+El objetivo general es construir una capa alrededor de Git que permita mantener
+la copia persistente de un repositorio dentro de un RAR5 cifrado:
+
+```text
+GitHub o remoto Git
+        ↓ HTTPS o SSH
+workspace temporal (%TEMP% o RAM Disk)
+        ↕
+repositorio completo cifrado, incluido .git
+```
+
+Git seguirá realizando `clone`, `fetch`, `pull`, `rebase`, `commit` y `push`.
+La utilidad administrará únicamente el workspace temporal, el cifrado, la
+verificación y la recuperación ante fallos. Están previstos `git-lock`,
+`git-unlock`, `git-work` y `git-lock-status`, pero aún no están implementados.
+
+HTTPS y SSH cifran el transporte hacia el remoto. RAR5 persigue un objetivo
+diferente: proteger la copia mientras permanece almacenada localmente y el
+workspace está cerrado.
+
+Cuando exista un repositorio original verificable se utilizará:
 
 ```text
 origin    → fork o repositorio de trabajo
-upstream  → repositorio original, solo como referencia de colaboración
+upstream  → repositorio original, solo como referencia
 ```
 
-No se realizarán envíos al remoto `upstream`. La sincronización prevista será
-mediante `git fetch upstream` y el rebase sobre la rama principal que utilice el
-proyecto original.
+Nunca se harán envíos al remoto `upstream`.
+
+## Uso legítimo y límites
+
+Este proyecto **no es una herramienta para descargar, extraer, copiar ni
+sustraer música, vídeo u otros contenidos multimedia**. No incorpora mecanismos
+para eludir controles de acceso, medidas técnicas de protección, licencias,
+derechos de autor o condiciones de servicio.
+
+`yt-list-lock` se limita a solicitar un índice de títulos y enlaces mediante el
+modo plano de `yt-dlp`. Cada usuario debe tener autorización para consultar las
+fuentes y tratar los datos resultantes, y es responsable de cumplir la
+legislación, las licencias y las condiciones aplicables.
+
+El nombre actual del repositorio no implica afiliación, patrocinio ni respaldo
+por parte de `yt-dlp`, sus mantenedores, YouTube, Google ni ninguna empresa o
+marca. El proyecto no comercializa música o contenido multimedia, no actúa en
+nombre de terceros y no utiliza `yt-dlp` como motor de descarga.
+
+## Estructura del repositorio
+
+```text
+tools/
+  YtListLock.psm1       funciones de detección, parsing y cifrado
+  yt-list-lock.ps1      comando PowerShell
+scripts/
+  yt-list-lock.cmd      lanzador para CMD
+tests/
+  YtListLock.Tests.ps1  pruebas locales sin descarga multimedia
+LICENSE
+README.md
+```
 
 ## Licencia
 
-Consulta el archivo [LICENSE](LICENSE).
+Consulte [LICENSE](LICENSE).
