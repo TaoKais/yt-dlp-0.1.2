@@ -150,7 +150,7 @@ function Invoke-YtListLock {
 
     New-Item -ItemType Directory -Path $stagedFolder -Force | Out-Null
     try {
-        $arguments = @('--flat-playlist', '--print', '%(title)s | https://www.youtube.com/watch?v=%(id)s') + $sources
+        $arguments = @('--flat-playlist', '--print', 'https://www.youtube.com/watch?v=%(id)s') + $sources
         $lines = & $YtDlpPath @arguments 2> $errorFile
         $exitCode = $LASTEXITCODE
         if ($exitCode -ne 0) {
