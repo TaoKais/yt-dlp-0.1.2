@@ -23,10 +23,14 @@ try {
         -Output 'single.txt' `
         -Folder (Join-Path $testRoot 'output\single') `
         -ArchiveName 'single-source' `
-        -YtDlpPath (Join-Path $PSScriptRoot 'fixtures\fake-yt-dlp.cmd') `
+        -YtDlpPath (Join-Path $PSScriptRoot 'fixtures\fake-yt-dlp.ps1') `
         -WinRARPath (Join-Path $PSScriptRoot 'fixtures\fake-winrar.cmd')
     Assert-Equal 1 $result.Sources 'Invoke-YtListLock debe informar una sola fuente sin error de Count.'
     Assert-Equal $true (Test-Path -LiteralPath $result.Archive -PathType Leaf) 'Debe publicar el RAR simulado.'
+    $savedLines = @(Get-Content -LiteralPath $result.Archive -Encoding UTF8)
+    Assert-Equal 2 $savedLines.Count 'Debe guardar una URL por linea.'
+    Assert-Equal 'https://www.youtube.com/watch?v=TEST_ID' $savedLines[0] 'La primera linea debe contener solo la URL.'
+    Assert-Equal 'https://www.youtube.com/watch?v=SECOND_ID' $savedLines[1] 'La segunda linea debe contener solo la URL.'
 }
 finally {
     if (Test-Path -LiteralPath $testRoot) {

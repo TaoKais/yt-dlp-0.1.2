@@ -64,7 +64,7 @@ pero no recibe la contraseña de WinRAR.
 La operación equivalente es:
 
 ```text
-yt-dlp --flat-playlist --print "<FORMATO_DE_TITULO_Y_ENLACE>" <URL_PRIVADA>...
+yt-dlp --flat-playlist --print "https://www.youtube.com/watch?v=%(id)s" <URL_PRIVADA>...
 ```
 
 PowerShell captura la salida directamente. No utiliza `>` proporcionado por el
@@ -76,7 +76,7 @@ usuario, lo que permite comprobar el código de salida antes de continuar. Si
 WinRAR se ejecuta aproximadamente así:
 
 ```text
-WinRAR.exe a -ma5 -hp -ep1 -- nombre.tmp.rar carpeta
+WinRAR.exe a -ma5 -hp -ep1 -t -- nombre.tmp.rar carpeta
 ```
 
 La opción `-hp` se pasa sin contraseña. WinRAR solicita el secreto directamente
@@ -89,15 +89,16 @@ El módulo espera a que la aplicación gráfica termine mediante
 
 ## 7. Verificación obligatoria
 
-Que exista `nombre.tmp.rar` no basta. Se inicia una segunda operación:
+Que exista `nombre.tmp.rar` no basta. v2 utiliza `-t` para verificar el RAR
+en la misma operación que lo crea:
 
 ```text
-WinRAR.exe t -hp -- nombre.tmp.rar
+WinRAR.exe a -ma5 -hp -ep1 -t -- nombre.tmp.rar carpeta
 ```
 
-WinRAR puede pedir nuevamente la contraseña. La verificación solo se considera
-correcta si el proceso finaliza con código cero. Una contraseña distinta, un
-diálogo cancelado o un archivo corrupto impiden publicar el resultado.
+WinRAR reutiliza la contraseña de creación durante la verificación. Solo se
+publica el resultado si el proceso finaliza con código cero y el RAR existe.
+Un diálogo cancelado o un fallo de integridad impiden publicar el resultado.
 
 ## 8. Publicación transaccional
 
@@ -137,8 +138,10 @@ Las pruebas se dividen en dos grupos.
 ### Pruebas locales sin red
 
 `tests/YtListLock.Tests.ps1` valida parsing, deduplicación, rechazo de URL no
-válidas y detección de herramientas. `tests/fixtures/fake-yt-dlp.cmd` genera una
-línea ficticia para probar WinRAR sin acceder a YouTube ni descargar contenido.
+válidas, detección de herramientas y una URL por línea. El simulador de WinRAR
+exige `-t` y rechaza una segunda ejecución de prueba. El fixture
+`tests/fixtures/fake-yt-dlp.cmd` genera una URL ficticia para probar WinRAR sin
+acceder a YouTube ni descargar contenido.
 
 ### Prueba interactiva de WinRAR
 
@@ -146,7 +149,8 @@ línea ficticia para probar WinRAR sin acceder a YouTube ni descargar contenido.
 introduzca la contraseña directamente en WinRAR. Nunca se debe escribir esa
 contraseña en la terminal o incorporarla al script.
 
-Las pruebas realizadas con WinRAR 7.23 confirmaron estos comportamientos:
+Las pruebas históricas realizadas con WinRAR 7.23, antes de v2 y con dos
+ejecuciones independientes, confirmaron estos comportamientos:
 
 1. WinRAR crea el candidato RAR5 cuando recibe `-ma5 -hp`.
 2. Si se introducen deliberadamente contraseñas diferentes al crear y verificar,

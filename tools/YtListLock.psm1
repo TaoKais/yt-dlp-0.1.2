@@ -72,7 +72,7 @@ function Invoke-WinRARProcess {
     # These paths cannot contain a double quote on Windows. Quoting them here
     # preserves spaces without ever adding a password to the process arguments.
     $arguments = if ($Command -eq 'a') {
-        'a -ma5 -hp -ep1 -- "{0}" "{1}"' -f $ArchivePath, $InputPath
+        'a -ma5 -hp -ep1 -t -- "{0}" "{1}"' -f $ArchivePath, $InputPath
     }
     else {
         't -hp -- "{0}"' -f $ArchivePath
@@ -150,7 +150,7 @@ function Invoke-YtListLock {
 
     New-Item -ItemType Directory -Path $stagedFolder -Force | Out-Null
     try {
-        $arguments = @('--flat-playlist', '--print', '%(title)s | https://www.youtube.com/watch?v=%(id)s') + $sources
+        $arguments = @('--flat-playlist', '--print', 'https://www.youtube.com/watch?v=%(id)s') + $sources
         $lines = & $YtDlpPath @arguments 2> $errorFile
         $exitCode = $LASTEXITCODE
         if ($exitCode -ne 0) {
@@ -166,14 +166,11 @@ function Invoke-YtListLock {
         $rarExitCode = Invoke-WinRARProcess -WinRARPath $WinRARPath -Command a `
             -ArchivePath $tempArchivePath -InputPath $stagedFolder
         if ($rarExitCode -ne 0 -or -not (Test-Path -LiteralPath $tempArchivePath -PathType Leaf)) {
-            throw "WinRAR no pudo crear el archivo. Workspace conservado en '$sessionRoot'."
+            throw "WinRAR no pudo crear y verificar el archivo. Workspace conservado en '$sessionRoot'."
         }
 
-        $rarExitCode = Invoke-WinRARProcess -WinRARPath $WinRARPath -Command t `
-            -ArchivePath $tempArchivePath
-        if ($rarExitCode -ne 0) {
-            throw "La verificacion del RAR fallo. Workspace y archivo temporal conservados."
-        }
+        # -t verifica el RAR dentro del mismo proceso y reutiliza la contrasena
+        # introducida en WinRAR, sin una segunda solicitud ni secretos en argv.
 
         if (Test-Path -LiteralPath $archivePath) {
             Move-Item -LiteralPath $archivePath -Destination $previousArchivePath

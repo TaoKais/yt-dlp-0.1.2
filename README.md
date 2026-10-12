@@ -16,10 +16,10 @@ se documentan en [docs/METODOLOGIA.md](docs/METODOLOGIA.md).
 ## Qué hace actualmente
 
 El comando `yt-list-lock` recibe una o varias URL de canales o listas, solicita
-a `yt-dlp` un índice plano y guarda líneas con este formato:
+a `yt-dlp` un índice plano y guarda únicamente una URL por línea (v2):
 
 ```text
-Título del vídeo | enlace generado a partir del identificador
+https://www.youtube.com/watch?v=IDENTIFICADOR
 ```
 
 Después coloca el texto dentro de una carpeta temporal, crea un archivo RAR5
@@ -36,10 +36,10 @@ yt-dlp --flat-playlist --print ...
 archivo de texto en %TEMP%\YtListLock-<id>
         │
         ▼
-WinRAR a -ma5 -hp ... nombre.tmp.rar
+WinRAR a -ma5 -hp -t ... nombre.tmp.rar
         │
         ▼
-WinRAR t -hp ... nombre.tmp.rar
+verificación integrada en el mismo proceso
         │
         ├── error: conservar workspace y RAR temporal
         │
@@ -47,7 +47,10 @@ WinRAR t -hp ... nombre.tmp.rar
 ```
 
 `--flat-playlist` evita procesar o descargar los archivos multimedia. La salida
-contiene únicamente los títulos e identificadores que `yt-dlp` pueda consultar.
+contiene únicamente enlaces generados a partir de los identificadores que `yt-dlp` pueda consultar.
+
+La versión v2 puede ejecutarse con `.\tools\yt-list-lock-v2.ps1`, con los mismos
+parámetros. El comando original y el lanzador CMD también utilizan este formato.
 
 ## Requisitos
 
@@ -176,10 +179,10 @@ Los parámetros significan:
 ### 5. Introducir la contraseña
 
 WinRAR mostrará una solicitud para crear el archivo cifrado. Introduzca allí la
-contraseña; no la escriba en el comando. Durante la comprobación puede aparecer
-una segunda solicitud: debe introducir exactamente la misma contraseña.
+contraseña; no la escriba en el comando. La opción `-t` verifica el RAR en la
+misma ejecución reutilizando esa contraseña, sin un segundo diálogo de prueba.
 
-Si ambas operaciones terminan correctamente, el resultado será:
+Si la creación y la verificación terminan correctamente, el resultado será:
 
 ```text
 resultados\watch_later_private.rar
@@ -205,7 +208,7 @@ es válida y debe mostrar `Sources : 1`.
 
 ### 6. Interpretar un fallo
 
-Si las dos contraseñas no coinciden, se cancela un diálogo o falla una
+Si se cancela el diálogo, falla la verificación o falla una
 dependencia, no se publica el nombre definitivo. El candidato permanece como:
 
 ```text
@@ -221,8 +224,8 @@ Errores ya identificados durante las pruebas:
 - **No se puede crear `...tmp.rar`:** la ruta relativa se resolvió desde otro
   directorio. La versión actual crea el padre automáticamente, pero conviene
   verificar `Get-Location` o utilizar una ruta absoluta.
-- **Código 11 de WinRAR:** las contraseñas de creación y verificación no
-  coinciden. El RAR temporal y el workspace se conservan.
+- **Código 11 de WinRAR:** error de contraseña. El RAR temporal y el workspace
+  se conservan. v2 utiliza la misma contraseña para crear y comprobar.
 - **No se encuentra la propiedad `Count`:** correspondía a una versión anterior
   al commit que corrigió las fuentes únicas. Ejecute `git pull --ff-only`.
 - **Error de certificados TLS:** repare la cadena de certificados o la
@@ -339,19 +342,17 @@ logs o los argumentos visibles del proceso.
 El módulo invoca WinRAR con `-hp` sin añadir una contraseña:
 
 ```text
-WinRAR.exe a -ma5 -hp -ep1 -- nombre.tmp.rar carpeta
-WinRAR.exe t -hp -- nombre.tmp.rar
+WinRAR.exe a -ma5 -hp -ep1 -t -- nombre.tmp.rar carpeta
 ```
 
 - `-ma5` solicita el formato RAR5.
 - `-hp` solicita cifrado de datos y cabeceras y hace que WinRAR pida la
   contraseña interactivamente.
 - `-ep1` evita almacenar innecesariamente la ruta completa de origen.
-- `t` prueba el archivo cifrado antes de publicarlo.
+- `-t` prueba el archivo cifrado después de crearlo, antes de publicarlo.
 
-WinRAR puede pedir la contraseña nuevamente durante la verificación. No cierre
-esa segunda solicitud: sin una prueba correcta el RAR temporal no se convierte
-en el archivo definitivo.
+La verificación se realiza en el mismo proceso de WinRAR. Solo se publica el
+archivo definitivo si la creación y la prueba integrada terminan correctamente.
 
 La interacción exacta de `-hp` depende de la versión y del ejecutable de
 WinRAR. Debe comprobarse manualmente en el equipo antes de confiar información
@@ -429,7 +430,8 @@ Un campo vacío significa que el programa correspondiente no ha sido localizado.
 
 Las pruebas actuales no acceden a YouTube ni introducen contraseñas. Validan el
 parsing de múltiples URL, la eliminación de duplicados, el rechazo de entradas
-inválidas y la detección local de `yt-dlp`:
+inválidas, la detección local de `yt-dlp` y el contenido del texto generado
+(solo URL, una por línea), mediante ejecutables simulados:
 
 ```powershell
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
@@ -477,7 +479,7 @@ sustraer música, vídeo u otros contenidos multimedia**. No incorpora mecanismo
 para eludir controles de acceso, medidas técnicas de protección, licencias,
 derechos de autor o condiciones de servicio.
 
-`yt-list-lock` se limita a solicitar un índice de títulos y enlaces mediante el
+`yt-list-lock` se limita a solicitar un índice de enlaces mediante el
 modo plano de `yt-dlp`. Cada usuario debe tener autorización para consultar las
 fuentes y tratar los datos resultantes, y es responsable de cumplir la
 legislación, las licencias y las condiciones aplicables.
@@ -493,6 +495,7 @@ nombre de terceros y no utiliza `yt-dlp` como motor de descarga.
 tools/
   YtListLock.psm1       funciones de detección, parsing y cifrado
   yt-list-lock.ps1      comando PowerShell
+  yt-list-lock-v2.ps1   comando PowerShell v2, solo URL
 scripts/
   yt-list-lock.cmd      lanzador para CMD
 tests/
